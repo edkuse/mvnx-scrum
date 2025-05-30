@@ -39,3 +39,43 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+venv/
+
+# Python/FastAPI
+__pycache__/
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.cache/
+*.sqlite3
+
+# VSCode
+.vscode/
+
+# pytest
+.pytest_cache/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# pipenv/poetry
+Pipfile.lock
+poetry.lock
+
+# coverage reports
+htmlcov/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
