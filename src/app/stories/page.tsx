@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { Plus, MessageSquare, Edit2, Trash2, X, Star, Paperclip, Layers3, UserPlus } from 'lucide-react';
+import { Plus, ListTodo, Edit2, Trash2, X, Star, Paperclip, Layers3, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -343,7 +343,7 @@ export default function StoriesPage() {
       <div className="sticky top-0 z-10 backdrop-blur mb-2 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <MessageSquare className="w-6 h-6 text-primary" /> Stories / Tasks
+            <ListTodo className="w-6 h-6 text-primary" /> Stories / Tasks
           </h1>
         </div>
         <div className="flex gap-2 items-center">
@@ -526,7 +526,7 @@ export default function StoriesPage() {
                                   ) : <span className="flex-grow" />;
                                 })()}
                                 <span className="flex items-center gap-1 text-purple-500 flex-shrink-0"><Paperclip className="w-4 h-4" /> 0</span>
-                                <span className="flex items-center gap-1 text-orange-500 flex-shrink-0"><MessageSquare className="w-4 h-4" /> 0</span>
+                                <span className="flex items-center gap-1 text-orange-500 flex-shrink-0"><ListTodo className="w-4 h-4" /> 0</span>
                               </div>
                             </div>
                           )}

@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { ChevronsUpDown, Plus, Edit2, Layers3, Check, Boxes } from 'lucide-react';
+import { ChevronsUpDown, Plus, Edit2, Layers3, Check, Boxes, ListTodo } from 'lucide-react';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Card } from "@/components/ui/card";
@@ -33,6 +33,7 @@ export default function EpicsPage() {
   const [epics, setEpics] = useState<any[]>([]);
   const [applications, setApplications] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
+  const [stories, setStories] = useState<any[]>([]);
   const [newEpic, setNewEpic] = useState<any>({
     title: '',
     description: '',
@@ -61,11 +62,13 @@ export default function EpicsPage() {
   const [sortOption, setSortOption] = useState<string>('newest');
   const [ownerQuery, setOwnerQuery] = useState("");
   const [appQuery, setAppQuery] = useState("");
+  const [hoveredEpicId, setHoveredEpicId] = useState<number | null>(null);
 
   useEffect(() => {
     fetchEpics();
     fetchApplications();
     fetchUsers();
+    fetchStories();
   }, []);
 
   async function fetchEpics() {
@@ -84,6 +87,16 @@ export default function EpicsPage() {
     const res = await fetch(`${API_URL}/users/`);
     const data = await res.json();
     setUsers(data);
+  }
+  async function fetchStories() {
+    try {
+      const res = await fetch(`${API_URL}/stories/`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setStories(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error fetching stories:', error);
+    }
   }
 
   async function handleSaveEpic() {
@@ -366,7 +379,7 @@ export default function EpicsPage() {
                   onChange={val => setNewEpic((a: any) => ({ ...a, start_date: val }))}
                 />
                 <DatePickerField
-                  label="Due Date"
+                  label="Target Date"
                   value={newEpic.due_date}
                   onChange={val => setNewEpic((a: any) => ({ ...a, due_date: val }))}
                 />
@@ -510,127 +523,170 @@ export default function EpicsPage() {
       <div className="flex flex-wrap gap-4 mb-6">
         {loading ? (
           <div className="flex items-center justify-center h-64">Loading Epics...</div>
-        ) : filteredEpics.map((epic) => (
-          <Card key={epic.id} className="relative group min-w-[260px] flex-1 flex flex-col gap-2 p-5 shadow-md hover:shadow-lg transition-all">
-            <div className="flex items-center justify-between mb-1 gap-2">
-              <div className="flex items-center gap-2 min-w-0">
-                <span className="text-lg font-bold text-gray-900 truncate">{epic.title}</span>
-                <Button size="sm" variant="ghost" className="p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="Edit" onClick={() => handleOpenEditDialog(epic)}>
-                  <Edit2 className="w-4 h-4" />
-                </Button>
-              </div>
-              <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-semibold ${epic.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500'}`}>{epic.is_active ? 'Active' : 'Inactive'}</span>
-            </div>
-            <div className="flex flex-wrap gap-2 text-sm text-gray-700">
-              {/* Application badges with icon */}
-              {Array.isArray(epic.application_ids) && epic.application_ids.map((id: string) => {
-                const app = applications.find(a => a.itap_id === id);
-                return (
-                  <span key={id} className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-500 text-white">
-                    <Boxes className="w-3 h-3 mr-1 text-white opacity-80" />
-                    {app ? app.name : id}
-                  </span>
-                );
-              })}
-              {/* Status badge */}
-              <span className={`px-2 py-0.5 rounded-full text-xs font-semibold
-                ${epic.status === 'backlog' ? 'bg-blue-100 text-blue-700' :
-                  epic.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
-                  epic.status === 'done' ? 'bg-green-100 text-green-700' :
-                  'bg-gray-100 text-gray-700'}
-              `}>
-                {epic.status.charAt(0).toUpperCase() + epic.status.slice(1).replace('_', ' ')}
-              </span>
-              {/* Priority badge */}
-              <span className={`px-2 py-0.5 rounded-full text-xs font-semibold
-                ${epic.priority === 'critical' ? 'bg-red-100 text-red-700' :
-                  epic.priority === 'high' ? 'bg-orange-100 text-orange-700' :
-                  epic.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                  'bg-gray-100 text-gray-700'}
-              `}>
-                {epic.priority.charAt(0).toUpperCase() + epic.priority.slice(1)}
-              </span>
-            </div>
-            <div className="text-sm text-gray-700 mt-1">{epic.description}</div>
-            {/* Lead (owner) with avatar and progress percent right-aligned */}
-            <div className="flex items-center justify-between mt-1">
-              <div className="flex items-center gap-2 text-sm text-gray-500">
-                {(() => {
-                  const lead = users.find(u => u.attuid === epic.owner_id);
-                  if (!lead) return <span className="text-xs text-gray-400">Unassigned</span>;
-                  return (
-                    <>
-                      {lead.profile_picture ? (
-                        <img src={`data:image/jpeg;base64,${lead.profile_picture}`} alt={lead.last_nm + ', ' + lead.preferred_nm} className="w-8 h-8 rounded-full object-cover border" />
-                      ) : (
-                        <span className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs text-gray-500 border font-bold">
-                          {((lead.preferred_nm || lead.first_nm || '') + ' ' + (lead.last_nm || '')).split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2)}
-                        </span>
-                      )}
-                      <span className="text-gray-700 font-medium">{lead.preferred_nm || lead.first_nm} {lead.last_nm}</span>
-                    </>
-                  );
-                })()}
-              </div>
-              <div className="text-sm text-gray-500 font-semibold">75%</div>
-            </div>
-            {/* Progress bar */}
-            <div className="w-full h-2 bg-gray-200 rounded-full mt-1 mb-1">
-              <div
-                className="h-2 rounded-full transition-all duration-300"
-                style={{ width: `75%`, backgroundColor: epic.progress === 75 ? '#22c55e' : '#3b82f6' }}
-              />
-            </div>
-            {/* Due date countdown (centered, full width, color-coded) */}
-            {epic.due_date && (() => {
-              let dueDate = typeof epic.due_date === 'string' ? parseISO(epic.due_date) : epic.due_date;
-              if (!isValid(dueDate)) return null;
-              const now = new Date();
-              const days = differenceInDays(dueDate, now);
-              const weeks = differenceInWeeks(dueDate, now);
-              const months = differenceInMonths(dueDate, now);
-              let text = '';
-              let color = '';
-              if (days < 0) {
-                text = 'Past due';
-                color = 'bg-red-100 text-red-700';
-              } else if (days === 0) {
-                text = 'Due today';
-                color = 'bg-red-100 text-red-700';
-              } else if (days <= 7) {
-                text = days === 1 ? '1 day left' : `${days} days left`;
-                color = 'bg-red-100 text-red-700';
-              } else if (days > 7 && days < 30) {
-                const weeksDisplay = Math.round(days / 7);
-                text = weeksDisplay === 1 ? '1 week left' : `${weeksDisplay} weeks left`;
-                color = 'bg-yellow-100 text-yellow-800';
-              } else {
-                const monthsDisplay = Math.round(days / 30);
-                text = monthsDisplay === 1 ? '1 month left' : `${monthsDisplay} months left`;
-                color = 'bg-green-100 text-green-700';
-              }
-              return (
-                <div className={`w-full flex justify-center items-center ${color} rounded-full py-1 text-xs font-semibold mt-1 mb-1`}>{text}</div>
-              );
-            })()}
-            {/* Tags and due date at bottom */}
-            <div className="flex items-center justify-between gap-2 mt-auto">
-              <div className="flex flex-wrap gap-2">
-                {Array.isArray(epic.tags) && epic.tags.length > 0 && epic.tags.map((tag: string) => (
-                  <span key={tag} className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
-                    {tag}
-                  </span>
-                ))}
-              </div>
-              {epic.due_date && (
-                <div className="flex items-center gap-1 text-xs text-gray-600">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                  <span>{typeof epic.due_date === 'string' ? format(parseISO(epic.due_date), 'MMM dd, yyyy') : format(epic.due_date, 'MMM dd, yyyy')}</span>
+        ) : filteredEpics.map((epic) => {
+          // Calculate task counts for this epic
+          const epicStories = stories.filter(story => story.epic_id === epic.id);
+          const totalTasks = epicStories.length;
+          const completedTasks = epicStories.filter(story => story.status === 'Done').length;
+          const allTasksCompleted = totalTasks > 0 && totalTasks === completedTasks;
+
+          return (
+            <Card key={epic.id} className="relative group min-w-[260px] flex-1 flex flex-col gap-2 p-5 shadow-md hover:shadow-lg transition-all">
+              <div className="flex items-center justify-between mb-1 gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-lg font-bold text-gray-900 truncate">{epic.title}</span>
+                  <Button size="sm" variant="ghost" className="p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="Edit" onClick={() => handleOpenEditDialog(epic)}>
+                    <Edit2 className="w-4 h-4" />
+                  </Button>
                 </div>
-              )}
-            </div>
-          </Card>
-        ))}
+                {/* Task count badge with hover popover */}
+                <Popover open={hoveredEpicId === epic.id} onOpenChange={(open) => setHoveredEpicId(open ? epic.id : null)}>
+                  <PopoverTrigger asChild>
+                    <span 
+                      className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium cursor-help ${allTasksCompleted ? 'bg-gray-100 text-gray-500' : 'bg-blue-100 text-blue-700'}`}
+                      onMouseEnter={() => setHoveredEpicId(epic.id)}
+                      onMouseLeave={() => setHoveredEpicId(null)}
+                    >
+                      {allTasksCompleted ? (
+                        <Check className="w-4 h-4" />
+                      ) : (
+                        <ListTodo className="w-4 h-4" />
+                      )}
+                      {completedTasks}/{totalTasks}
+                    </span>
+                  </PopoverTrigger>
+                  <PopoverContent 
+                    className="w-auto p-2 text-xs"
+                    onMouseEnter={() => setHoveredEpicId(epic.id)}
+                    onMouseLeave={() => setHoveredEpicId(null)}
+                  >
+                    <div className="flex flex-col gap-1">
+                      <div className="font-medium">Stories/Tasks</div>
+                      <div className="text-muted-foreground">
+                        {totalTasks === 0 ? 'No tasks' : 
+                          `${completedTasks} completed out of ${totalTasks} total tasks`
+                        }
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div className="flex flex-wrap gap-2 text-sm text-gray-700">
+                {/* Application badges with icon */}
+                {Array.isArray(epic.application_ids) && epic.application_ids.map((id: string) => {
+                  const app = applications.find(a => a.itap_id === id);
+                  return (
+                    <span key={id} className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-500 text-white">
+                      <Boxes className="w-3 h-3 mr-1 text-white opacity-80" />
+                      {app ? app.name : id}
+                    </span>
+                  );
+                })}
+                {/* Status badge */}
+                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold
+                  ${epic.status === 'backlog' ? 'bg-blue-100 text-blue-700' :
+                    epic.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
+                    epic.status === 'done' ? 'bg-green-100 text-green-700' :
+                    'bg-gray-100 text-gray-700'}
+                `}>
+                  {epic.status.charAt(0).toUpperCase() + epic.status.slice(1).replace('_', ' ')}
+                </span>
+                {/* Priority badge */}
+                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold
+                  ${epic.priority === 'critical' ? 'bg-red-100 text-red-700' :
+                    epic.priority === 'high' ? 'bg-orange-100 text-orange-700' :
+                    epic.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-gray-100 text-gray-700'}
+                `}>
+                  {epic.priority.charAt(0).toUpperCase() + epic.priority.slice(1)}
+                </span>
+              </div>
+              <div className="text-sm text-gray-700 mt-1">{epic.description}</div>
+              {/* Lead (owner) with avatar and progress percent right-aligned */}
+              <div className="flex items-center justify-between mt-1">
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  {(() => {
+                    const lead = users.find(u => u.attuid === epic.owner_id);
+                    if (!lead) return <span className="text-xs text-gray-400">Unassigned</span>;
+                    return (
+                      <>
+                        {lead.profile_picture ? (
+                          <img src={`data:image/jpeg;base64,${lead.profile_picture}`} alt={lead.last_nm + ', ' + lead.preferred_nm} className="w-8 h-8 rounded-full object-cover border" />
+                        ) : (
+                          <span className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs text-gray-500 border font-bold">
+                            {((lead.preferred_nm || lead.first_nm || '') + ' ' + (lead.last_nm || '')).split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2)}
+                          </span>
+                        )}
+                        <span className="text-gray-700 font-medium">{lead.preferred_nm || lead.first_nm} {lead.last_nm}</span>
+                      </>
+                    );
+                  })()}
+                </div>
+                <div className="text-sm text-gray-500 font-semibold">
+                  {totalTasks === 0 ? '0%' : `${Math.round((completedTasks / totalTasks) * 100)}%`}
+                </div>
+              </div>
+              {/* Progress bar */}
+              <div className="w-full h-2 bg-gray-200 rounded-full mt-1 mb-1">
+                <div
+                  className="h-2 rounded-full transition-all duration-300"
+                  style={{ 
+                    width: `${totalTasks === 0 ? 0 : (completedTasks / totalTasks) * 100}%`,
+                    backgroundColor: totalTasks === completedTasks ? '#22c55e' : '#3b82f6'
+                  }}
+                />
+              </div>
+              {/* Due date countdown (centered, full width, color-coded) */}
+              {epic.due_date && (() => {
+                let dueDate = typeof epic.due_date === 'string' ? parseISO(epic.due_date) : epic.due_date;
+                if (!isValid(dueDate)) return null;
+                const now = new Date();
+                const days = differenceInDays(dueDate, now);
+                const weeks = differenceInWeeks(dueDate, now);
+                const months = differenceInMonths(dueDate, now);
+                let text = '';
+                let color = '';
+                if (days < 0) {
+                  text = 'Past due';
+                  color = 'bg-red-100 text-red-700';
+                } else if (days === 0) {
+                  text = 'Due today';
+                  color = 'bg-red-100 text-red-700';
+                } else if (days <= 7) {
+                  text = days === 1 ? '1 day left' : `${days} days left`;
+                  color = 'bg-red-100 text-red-700';
+                } else if (days > 7 && days < 30) {
+                  const weeksDisplay = Math.round(days / 7);
+                  text = weeksDisplay === 1 ? '1 week left' : `${weeksDisplay} weeks left`;
+                  color = 'bg-yellow-100 text-yellow-800';
+                } else {
+                  const monthsDisplay = Math.round(days / 30);
+                  text = monthsDisplay === 1 ? '1 month left' : `${monthsDisplay} months left`;
+                  color = 'bg-green-100 text-green-700';
+                }
+                return (
+                  <div className={`w-full flex justify-center items-center ${color} rounded-full py-1 text-xs font-semibold mt-1 mb-1`}>{text}</div>
+                );
+              })()}
+              {/* Tags and due date at bottom */}
+              <div className="flex items-center justify-between gap-2 mt-auto">
+                <div className="flex flex-wrap gap-2">
+                  {Array.isArray(epic.tags) && epic.tags.length > 0 && epic.tags.map((tag: string) => (
+                    <span key={tag} className="px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+                {epic.due_date && (
+                  <div className="flex items-center gap-1 text-xs text-gray-600">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    <span>{typeof epic.due_date === 'string' ? format(parseISO(epic.due_date), 'MMM dd, yyyy') : format(epic.due_date, 'MMM dd, yyyy')}</span>
+                  </div>
+                )}
+              </div>
+            </Card>
+          );
+        })}
         {(!loading && filteredEpics.length === 0) && (
           <div className="col-span-full text-center text-gray-400 py-12">No epics found.</div>
         )}

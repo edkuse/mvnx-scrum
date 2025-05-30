@@ -2,14 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Calendar, LayoutDashboard, Boxes, Layers3, MessageSquare, Flag, MessageCircle, CheckCircle } from 'lucide-react';
+import { Calendar, LayoutDashboard, Boxes, Layers3, ListTodo, Flag, MessageCircle, CheckCircle } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Applications', href: '/applications', icon: Boxes },
   { name: 'Epics', href: '/epics', icon: Layers3 },
-  { name: 'Stories/Tasks', href: '/stories', icon: MessageSquare },
+  { name: 'Stories/Tasks', href: '/stories', icon: ListTodo },
   { name: 'Sprints', href: '/sprints', icon: Flag },
   { name: 'Standups', href: '/standups', icon: Calendar },
   // { name: 'Reports', href: '/reports', icon: CheckCircle },
