@@ -27,6 +27,7 @@ class Story(SQLModel, table=True):
     updated_by: Optional[str] = Field(default=None, foreign_key="users.attuid", max_length=10)
     updated_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
     is_active: bool = Field(default=True)
+    sprint_id: Optional[int] = Field(default=None, foreign_key="sprints.id")
     
     # Relationships
     # epic: "Epic" = Relationship(back_populates="stories")

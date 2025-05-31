@@ -21,3 +21,6 @@ CREATE TABLE stories (
     updated_at TIMESTAMP WITH TIME ZONE,
     is_active BOOLEAN DEFAULT TRUE
 );
+
+ALTER TABLE stories
+ADD COLUMN sprint_id INT REFERENCES sprints(id);

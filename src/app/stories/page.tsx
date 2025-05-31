@@ -1,25 +1,20 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { Plus, ListTodo, Edit2, Trash2, X, Star, Paperclip, Layers3, UserPlus } from 'lucide-react';
+import { Plus, ListTodo, MessageCircle, Edit2, Star, Paperclip, Layers3, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from "@/hooks/use-toast";
 import { Loader } from '@/components/ui/loader';
 import { Textarea } from '@/components/ui/textarea';
 import { DatePickerField } from '@/components/ui/date-picker-field';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { showToast } from '@/lib/showToast';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
-
-const statusColors: Record<string, string> = {
-  'To Do': 'bg-gray-200 text-gray-700',
-  'In Progress': 'bg-blue-100 text-blue-700',
-  'Done': 'bg-green-100 text-green-700',
-};
 
 const typeColors: Record<string, string> = {
   'Story': 'bg-purple-100 text-purple-700',
@@ -123,7 +118,6 @@ export default function StoriesPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<number | null>(null);
   const [search, setSearch] = useState('');
-  const [filterStatus, setFilterStatus] = useState<string | null>(null);
   const { toast } = useToast();
   const [users, setUsers] = useState<any[]>([]);
   const [assignLoading, setAssignLoading] = useState<{[storyId: number]: boolean}>({});
@@ -141,7 +135,7 @@ export default function StoriesPage() {
       } catch (err) {
         console.error('Error in loadStories:', err);
         setError('Failed to fetch stories');
-        toast({
+        showToast({
           title: 'Error',
           description: 'Failed to fetch stories',
           variant: 'destructive',
@@ -162,7 +156,7 @@ export default function StoriesPage() {
         const data = await fetchEpics();
         setEpics(data);
       } catch (err) {
-        toast({
+        showToast({
           title: 'Error',
           description: 'Failed to fetch epics',
           variant: 'destructive',
@@ -201,21 +195,26 @@ export default function StoriesPage() {
         ...newStory,
         tags: newStory.tags.split(',').map(tag => tag.trim()).filter(Boolean)
       };
+      console.log('handleAddOrEdit called. editing:', editing, 'storyData:', storyData);
 
       if (editing !== null) {
         const updated = await updateStory(editing, storyData);
+        console.log('updateStory response:', updated);
         setStories(stories.map(s => s.id === editing ? updated : s));
-        toast({
+        showToast({
           title: 'Success',
-          description: 'Story updated successfully',
+          description: 'Story updated successfully'
         });
+        console.log('Toast: Story updated successfully');
       } else {
         const created = await createStory(storyData);
+        console.log('createStory response:', created);
         setStories([...stories, created]);
-        toast({
+        showToast({
           title: 'Success',
           description: 'Story created successfully',
         });
+        console.log('Toast: Story created successfully');
       }
       setNewStory({
         epic_id: 0,
@@ -233,12 +232,15 @@ export default function StoriesPage() {
       });
       setOpen(false);
       setEditing(null);
+      console.log('Dialog closed, form reset');
     } catch (err) {
-      toast({
+      console.error('Error in handleAddOrEdit:', err);
+      showToast({
         title: 'Error',
         description: editing ? 'Failed to update story' : 'Failed to create story',
         variant: 'destructive',
       });
+      console.log('Toast: Error shown');
     }
   }
 
@@ -255,16 +257,11 @@ export default function StoriesPage() {
       due_date: story.due_date || '',
       story_points: story.story_points || 0,
       progress: story.progress,
-      tags: story.tags || '',
+      tags: story.tags ? story.tags.join(',') : '',
     });
     setEditing(story.id);
     setOpen(true);
   }
-
-  const filteredStories = stories.filter(story =>
-    (!search || story.title.toLowerCase().includes(search.toLowerCase())) &&
-    (!filterStatus || story.status === filterStatus)
-  );
 
   const onDragEnd = async (result: any) => {
     if (!result.destination) return;
@@ -288,14 +285,14 @@ export default function StoriesPage() {
     try {
       const updatedStory = await updateStory(storyId, { ...story, status: newStatus });
       setStories(stories => stories.map(s => s.id === storyId ? updatedStory : s));
-      toast({
+      showToast({
         title: 'Success',
         description: 'Story status updated successfully',
       });
     } catch (err) {
       // Revert to previous state if backend call fails
       setStories(prevStories);
-      toast({
+      showToast({
         title: 'Error',
         description: 'Failed to update story status',
         variant: 'destructive',
@@ -320,10 +317,16 @@ export default function StoriesPage() {
     setStories(stories => stories.map(s => s.id === story.id ? { ...s, assignee_ids: newAssignees } : s));
     try {
       await updateStory(story.id, { ...story, assignee_ids: newAssignees });
+
     } catch (e) {
       // Revert on error
       setStories(stories => stories.map(s => s.id === story.id ? { ...s, assignee_ids: story.assignee_ids } : s));
-      toast({ title: 'Error', description: 'Failed to update assignees', variant: 'destructive' });
+      showToast({
+        title: 'Error',
+        description: 'Failed to update assignees',
+        variant: 'destructive'
+      });
+
     } finally {
       setAssignLoading(l => ({ ...l, [story.id]: false }));
     }
@@ -455,7 +458,7 @@ export default function StoriesPage() {
                                 <div className="text-sm text-gray-500 mb-2 line-clamp-3">{story.description}</div>
                               )}
                               {/* Assignees row with picker below description */}
-                              <div className="flex items-center gap-1 mb-2">
+                              <div className="flex items-center gap-1 mb-4">
                                 {story.assignee_ids && story.assignee_ids.slice(0, 5).map((id: string, idx: number) => {
                                   const user = users.find(u => u.attuid === id);
                                   return (
@@ -526,7 +529,7 @@ export default function StoriesPage() {
                                   ) : <span className="flex-grow" />;
                                 })()}
                                 <span className="flex items-center gap-1 text-purple-500 flex-shrink-0"><Paperclip className="w-4 h-4" /> 0</span>
-                                <span className="flex items-center gap-1 text-orange-500 flex-shrink-0"><ListTodo className="w-4 h-4" /> 0</span>
+                                <span className="flex items-center gap-1 text-orange-500 flex-shrink-0"><MessageCircle className="w-4 h-4" /> 0</span>
                               </div>
                             </div>
                           )}
@@ -635,16 +638,6 @@ export default function StoriesPage() {
                 </SelectContent>
               </Select>
             </div>
-            <DatePickerField
-              label="Start Date"
-              value={newStory.start_date || ''}
-              onChange={val => setNewStory((a: any) => ({ ...a, start_date: val }))}
-            />
-            <DatePickerField
-              label="Due Date"
-              value={newStory.due_date || ''}
-              onChange={val => setNewStory((a: any) => ({ ...a, due_date: val }))}
-            />
             <div>
               <Label className="text-xs text-muted-foreground">Story Points</Label>
               <Input

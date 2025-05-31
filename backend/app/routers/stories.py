@@ -68,6 +68,7 @@ def update_story(story_id: int, story: StoryUpdate, db: Session = Depends(get_db
         
         logger.info(f"Updating story {story_id} with data: {story.model_dump(exclude_unset=True)}")
         story_data = story.model_dump(exclude_unset=True)
+
         for key, value in story_data.items():
             setattr(db_story, key, value)
         

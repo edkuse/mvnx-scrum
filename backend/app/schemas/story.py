@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 class StoryBase(BaseModel):
     title: str = Field(..., max_length=255)
     epic_id: int
+    sprint_id: Optional[int] = None
     description: Optional[str] = None
     type: str = Field(default="Story", max_length=50)
     status: str = Field(default="To Do", max_length=50)
@@ -28,8 +29,12 @@ class StoryCreate(StoryBase):
 # Properties to receive on story update
 class StoryUpdate(StoryBase):
     title: Optional[str] = Field(None, max_length=255)
+    epic_id: Optional[int] = None
+    sprint_id: Optional[int] = None
+    type: Optional[str] = None
+    status: Optional[str] = None
+    priority: Optional[str] = None
     completed_date: Optional[datetime] = None
-    time_logged_minutes: Optional[int] = None
     is_active: Optional[bool] = None
 
 class StoryResponse(StoryBase):

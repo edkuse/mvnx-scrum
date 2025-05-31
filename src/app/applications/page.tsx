@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Boxes } from 'lucide-react';
+import { Boxes, Layers3, ListTodo } from 'lucide-react';
 import { Card  } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader } from '@/components/ui/loader';
+import { Check } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 interface Application {
   itap_id: string;
@@ -42,6 +44,8 @@ function getInitials(name: string) {
 
 export default function ApplicationsPage() {
   const [applications, setApplications] = useState<Application[]>([]);
+  const [epics, setEpics] = useState<any[]>([]);
+  const [stories, setStories] = useState<any[]>([]);
   const [newApp, setNewApp] = useState<Partial<Application>>({ name: '', description: '', acronym: '' });
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
@@ -54,9 +58,13 @@ export default function ApplicationsPage() {
   const [sortBy, setSortBy] = useState<SortOption>('name-asc');
   const [ownerFilter, setOwnerFilter] = useState<string>('all');
   const [businessOwnerFilter, setBusinessOwnerFilter] = useState<string>('all');
+  const [epicPopoverOpen, setEpicPopoverOpen] = useState<string | null>(null);
+  const [taskPopoverOpen, setTaskPopoverOpen] = useState<string | null>(null);
 
   useEffect(() => {
     fetchApplications();
+    fetchEpics();
+    fetchStories();
   }, []);
 
   async function fetchApplications() {
@@ -70,6 +78,28 @@ export default function ApplicationsPage() {
       setError(err instanceof Error ? err.message : 'Failed to fetch applications');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function fetchEpics() {
+    try {
+      const response = await fetch(`${API_URL}/epics/`);
+      if (!response.ok) throw new Error('Failed to fetch epics');
+      const data = await response.json();
+      setEpics(data);
+    } catch (err) {
+      console.error('Error fetching epics:', err);
+    }
+  }
+
+  async function fetchStories() {
+    try {
+      const response = await fetch(`${API_URL}/stories/`);
+      if (!response.ok) throw new Error('Failed to fetch stories');
+      const data = await response.json();
+      setStories(data);
+    } catch (err) {
+      console.error('Error fetching stories:', err);
     }
   }
 
@@ -259,57 +289,149 @@ export default function ApplicationsPage() {
       <hr className="border-t border-gray-200 mb-2" />
 
       {/* Card list */}
-      <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-        {filteredAndSortedApps.map((app) => (
-          <Card
-            key={app.itap_id}
-            className="relative group transition-all duration-200 hover:shadow-lg flex flex-col gap-1.5 cursor-pointer animate-fadeIn"
-            style={{ padding: 0 }}
-            onClick={() => handleCardClick(app)}
-          >
-            <div className="p-4">
-              <div className="flex items-center gap-2 justify-between">
-                <div className="font-bold text-base text-gray-900 truncate">{app.name}</div>
-                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                  app.active 
-                    ? 'bg-green-100 text-green-800' 
-                    : 'bg-red-100 text-red-800'
-                }`}>
-                  {app.active ? 'Active' : 'Inactive'}
-                </span>
-              </div>
-              <div className="text-gray-700 text-sm line-clamp-5 my-4">{app.description || 'No description provided'}</div>
-              <div className="flex items-center justify-between mt-1">
-                {app.owner_name && (
+      <div className="grid gap-8 grid-cols-1 md:grid-cols-2">
+        {filteredAndSortedApps.map((app) => {
+          // Calculate counts for this application
+          const appEpics = epics.filter(epic => 
+            Array.isArray(epic.application_ids) && 
+            epic.application_ids.includes(app.itap_id)
+          );
+          const appStories = stories.filter(story => 
+            appEpics.some(epic => epic.id === story.epic_id)
+          );
+          const completedStories = appStories.filter(story => story.status === 'Done').length;
+
+          return (
+            <Card
+              key={app.itap_id}
+              className="relative group transition-all duration-200 hover:shadow-lg flex flex-col gap-1.5 cursor-pointer animate-fadeIn"
+              style={{ padding: 0 }}
+              onClick={() => handleCardClick(app)}
+            >
+              <div className="p-4">
+                <div className="flex items-center gap-2 justify-between">
+                  <div className="font-bold text-base text-gray-900 truncate">{app.name}</div>
                   <div className="flex items-center gap-2">
-                    {app.owner_profile_picture ? (
-                      <img
-                        src={`data:image/jpeg;base64,${app.owner_profile_picture}`}
-                        alt={app.owner_name}
-                        className="w-7 h-7 rounded-full object-cover border"
-                      />
-                    ) : (
-                      <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-xs text-gray-500 border">
-                        {app.owner_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2)}
-                      </div>
+                    {/* Epics count badge with tooltip (only if > 0) */}
+                    {appEpics.length > 0 && (
+                      <Popover open={epicPopoverOpen === app.itap_id + '-epics'} onOpenChange={open => setEpicPopoverOpen(open ? app.itap_id + '-epics' : null)}>
+                        <PopoverTrigger asChild>
+                          <span
+                            className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700 cursor-help"
+                            onMouseEnter={() => setEpicPopoverOpen(app.itap_id + '-epics')}
+                            onMouseLeave={() => setEpicPopoverOpen(null)}
+                          >
+                            <Layers3 className="w-3 h-3" />
+                            {appEpics.length}
+                          </span>
+                        </PopoverTrigger>
+                        <PopoverContent
+                          className="w-auto p-2 text-xs"
+                          onMouseEnter={() => setEpicPopoverOpen(app.itap_id + '-epics')}
+                          onMouseLeave={() => setEpicPopoverOpen(null)}
+                        >
+                          <div className="font-medium">Epics</div>
+                          <div className="text-muted-foreground">{`${appEpics.length} epic${appEpics.length === 1 ? '' : 's'} linked to this application`}</div>
+                        </PopoverContent>
+                      </Popover>
                     )}
-                    <span className="text-xs text-gray-700 font-medium truncate max-w-[100px]">{app.owner_name}</span>
+                    {/* Stories/Tasks count badge with tooltip (only if > 0) */}
+                    {appStories.length > 0 && (
+                      <Popover open={taskPopoverOpen === app.itap_id + '-tasks'} onOpenChange={open => setTaskPopoverOpen(open ? app.itap_id + '-tasks' : null)}>
+                        <PopoverTrigger asChild>
+                          <span
+                            className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                              completedStories === appStories.length ? 'bg-green-100 text-green-700' :
+                              'bg-blue-100 text-blue-700'
+                            } cursor-help`}
+                            onMouseEnter={() => setTaskPopoverOpen(app.itap_id + '-tasks')}
+                            onMouseLeave={() => setTaskPopoverOpen(null)}
+                          >
+                            {completedStories === appStories.length ? (
+                              <Check className="w-3 h-3" />
+                            ) : (
+                              <ListTodo className="w-3 h-3" />
+                            )}
+                            {completedStories}/{appStories.length}
+                          </span>
+                        </PopoverTrigger>
+                        <PopoverContent
+                          className="w-auto p-2 text-xs"
+                          onMouseEnter={() => setTaskPopoverOpen(app.itap_id + '-tasks')}
+                          onMouseLeave={() => setTaskPopoverOpen(null)}
+                        >
+                          <div className="font-medium">Stories/Tasks</div>
+                          <div className="text-muted-foreground">
+                            {`${completedStories} completed out of ${appStories.length} total tasks`}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
+                    )}
                   </div>
-                )}
-                {app.acronym && (
-                  <div className="flex flex-col items-end ml-auto">
-                    <div className="text-xs text-gray-500">
-                      <span className="font-medium">Acronym:</span> {app.acronym}
+                </div>
+                <div className="text-gray-700 text-sm line-clamp-5 my-4">{app.description || 'No description provided'}</div>
+                <div className="flex items-center justify-between mt-1 border-t border-gray-200 pt-2">
+                  {/* IT Owner (left) */}
+                  {app.owner_name && (
+                    <div className="flex flex-col items-start">
+                      <span className="text-[10px] text-muted-foreground font-medium mb-1">IT Owner</span>
+                      <div className="flex items-center gap-2">
+                        {app.owner_profile_picture ? (
+                          <img
+                            src={`data:image/jpeg;base64,${app.owner_profile_picture}`}
+                            alt={app.owner_name}
+                            className="w-7 h-7 rounded-full object-cover border"
+                          />
+                        ) : (
+                          <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-xs text-gray-500 border">
+                            {app.owner_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2)}
+                          </div>
+                        )}
+                        <span className="text-xs text-gray-700 font-medium">{app.owner_name}</span>
+                      </div>
                     </div>
-                    <div className="text-xs text-gray-500 mt-0.5">
-                      <span className="font-medium">ITAP Id:</span> {app.itap_id}
+                  )}
+                  {/* Business Owner (right) */}
+                  {app.business_owner_name && (
+                    <div className="flex flex-col ml-auto">
+                      <span className="text-[10px] text-muted-foreground font-medium mb-1">Business Owner</span>
+                      <div className="flex items-center gap-2">
+                        {app.business_owner_profile_picture ? (
+                          <img
+                            src={`data:image/jpeg;base64,${app.business_owner_profile_picture}`}
+                            alt={app.business_owner_name}
+                            className="w-7 h-7 rounded-full object-cover border"
+                          />
+                        ) : (
+                          <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-xs text-gray-500 border">
+                            {app.business_owner_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0,2)}
+                          </div>
+                        )}
+                        <span className="text-xs text-gray-700 font-medium">{app.business_owner_name}</span>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
+                {/* Acronym and ITAP ID row at bottom */}
+                <div className="flex items-center justify-between mt-4 text-xs text-gray-500">
+                  <span className="font-medium">ACRONYM:</span> <span className="ml-1">{app.acronym}</span>
+                  <span className="ml-auto">
+                    <span className="font-medium">ITAP:</span>{' '}
+                    <a
+                      href={`https://example.com/app/${app.itap_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-500 hover:text-blue-800 transition-colors ml-1"
+                      onClick={e => e.stopPropagation()}
+                    >
+                      {app.itap_id}
+                    </a>
+                  </span>
+                </div>
               </div>
-            </div>
-          </Card>
-        ))}
+            </Card>
+          );
+        })}
         {filteredAndSortedApps.length === 0 && (
           <div className="col-span-full text-center text-gray-400 py-12">
             {search || statusFilter !== 'all' 

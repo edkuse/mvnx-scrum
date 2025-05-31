@@ -60,6 +60,7 @@ export default function EpicsPage() {
   const [appFilterPopoverOpen, setAppFilterPopoverOpen] = useState(false);
   const [appFilterQuery, setAppFilterQuery] = useState("");
   const [sortOption, setSortOption] = useState<string>('newest');
+  const [leadPopoverOpen, setLeadPopoverOpen] = useState(false);
   const [ownerQuery, setOwnerQuery] = useState("");
   const [appQuery, setAppQuery] = useState("");
   const [hoveredEpicId, setHoveredEpicId] = useState<number | null>(null);
@@ -276,7 +277,7 @@ export default function EpicsPage() {
                         ].filter(Boolean).some(field => field.toLowerCase().includes(queryLower));
                       });
                     return (
-                      <Popover>
+                      <Popover open={leadPopoverOpen} onOpenChange={setLeadPopoverOpen}>
                         <PopoverTrigger asChild>
                           <Button
                             variant="outline"
@@ -300,6 +301,7 @@ export default function EpicsPage() {
                                   value={user.attuid}
                                   onSelect={() => {
                                     setNewEpic((a: any) => ({ ...a, owner_id: user.attuid }));
+                                    setLeadPopoverOpen(false);
                                   }}
                                 >
                                   <Check
